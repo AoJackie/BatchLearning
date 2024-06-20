@@ -1,0 +1,522 @@
+--*************************************************************************************************************
+--	Copyright (C) 2015-2018 Nidec elesys Co.,Ltd. All rights reserved.
+--
+--	------------------------------------------------------------------------------------------------------
+--	適用SYSTEM	：	EPS
+--
+--	適用ECU		：	VX6S1D
+--	------------------------------------------------------------------------------------------------------
+--	ﾌｧｲﾙ説明	：	ｽﾀｰﾄｱｯﾌﾟ・ﾌｧｲﾙ(RH850/P1M GreenHills環境用)
+--	------------------------------------------------------------------------------------------------------
+--	備考		：	
+--
+--*************************************************************************************************************
+
+
+--=============================================================================================================
+--	変更履歴：
+--	------------------------------------------------------------------------------------------------------
+--	Rev00	Ver10.01.00	2019/02/08	@C	NW	NESJ6-68	FE-6 C-Sample(ANA0R01EM-19131A)より流用
+--	Rev01	Ver10.01.00	2019/03/06	@C	CS	NESJ6-4		CPU変更
+--	Rev02	Ver20.03.00	2019/12/20	TY	CS	NESJ6-1581	Variant Coding 対応(MAPﾘﾌﾟﾛ対応準備)
+--=============================================================================================================
+--------------------------------------------------------------------------
+-- Definition of external and global functions
+--------------------------------------------------------------------------
+.globl __start
+
+--------------------------------------------------------------------------
+--	extern label
+--------------------------------------------------------------------------
+.extern	__exception_vf
+.extern	__fenmi_vf
+.extern	__feint_vf
+
+.extern _SysBSts_Initialize
+--------------------------------------------------------------------------
+-- RESET handler
+--------------------------------------------------------------------------
+	.org	0x00 					-- reset vector
+	jr		__start
+	nop
+--------------------------------------------------------------------------
+-- FE Level Interrupt/Exception handler
+--------------------------------------------------------------------------
+	.org	0x10					-- SYSERR
+	jr		__exception_vf
+	.org	0x30					-- FETRAP
+	jr		__exception_vf
+	.org	0x60					-- RIE
+	jr		__exception_vf
+	.org	0x80					-- UCPOP
+	jr		__exception_vf
+	.org	0x90					-- MIP/MDP
+	jr		__exception_vf
+	.org	0xA0					-- PIE
+	jr		__exception_vf
+	.org	0xC0					-- MAE
+	jr		__exception_vf
+	.org	0xE0					-- FENMI
+	jr		__fenmi_vf
+	.org	0xF0					-- FEINT
+	jr		__feint_vf
+
+--------------------------------------------------------------------------
+-- Basic Initialisation of the controller 
+--------------------------------------------------------------------------
+.section "ibl_entry.text", "ax"
+__start:
+--------------------------------------------------------------------------
+--	ﾚｼﾞｽﾀ番号
+--------------------------------------------------------------------------
+-- 基本ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 0 --
+	.set	EIPC,	0
+	.set	EIPSW,	1
+	.set	FEPC,	2
+	.set	FEPSW,	3
+	.set	PSW,	5
+	.set	EIIC,	13
+	.set	FEIC,	14
+	.set	CTPC,	16
+	.set	CTPSW,	17
+	.set	CTBP,	20
+	.set	EIWR,	28
+	.set	FEWR,	29
+	-- selID 1 --
+	.set	MCFG0,	0
+	.set	EBASE,	3
+	.set	INTBP,	4
+	.set	MCTL,	5
+	.set	SCCFG,	11
+	.set	SCBP,	12
+	-- selID 2 --
+	.set	MEA,	6
+	.set	ASID,	7
+	.set	MEI,	8
+
+-- 割り込み機能ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 1 --
+	.set	FPIPR,	7
+	-- selID 2 --
+	.set	PMR,	11
+	.set	INTCFG,	13
+	.set	ISPR,	10
+
+-- FPU機能ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 0 --
+
+
+-- MPU機能ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 5 --
+	.set	MPM,	0
+	.set	MPRC,	1
+	.set	MCA,	8
+	.set	MCS,	9
+	.set	MCR,	11
+	-- selID 6 --
+	.set	MPLA0,	0
+	.set	MPUA0,	1
+	.set	MPAT0,	2
+	.set	MPLA1,	4
+	.set	MPUA1,	5
+	.set	MPAT1,	6
+	.set	MPLA2,	8
+	.set	MPUA2,	9
+	.set	MPAT2,	10
+	.set	MPLA3,	12
+	.set	MPUA3,	13
+	.set	MPAT3,	14
+	.set	MPLA4,	16
+	.set	MPUA4,	17
+	.set	MPAT4,	18
+	.set	MPLA5,	20
+	.set	MPUA5,	21
+	.set	MPAT5,	22
+	.set	MPLA6,	24
+	.set	MPUA6,	25
+	.set	MPAT6,	26
+	.set	MPLA7,	28
+	.set	MPUA7,	29
+	.set	MPAT7,	30
+	-- selID 7 --
+	.set	MPLA8,	0
+	.set	MPUA8,	1
+	.set	MPAT8,	2
+	.set	MPLA9,	4
+	.set	MPUA9,	5
+	.set	MPAT9,	6
+	.set	MPLA10,	8
+	.set	MPUA10,	9
+	.set	MPAT10,	10
+	.set	MPLA11,	12
+	.set	MPUA11,	13
+	.set	MPAT11,	14
+-- ｷｬｯｼｭ制御ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 4 --
+	.set	ICTAGL,	16
+	.set	ICTAGH,	17
+	.set	ICDATL,	18
+	.set	ICDATH,	19
+	.set	ICCTRL,	24
+	.set	ICERR,	28
+-- ﾃﾞｰﾀﾊﾞｯﾌｧ操作機能ﾚｼﾞｽﾀ --
+	-- selID 13 --
+	.set	CDBCR,	24
+
+--------------------------------------------------------------------------
+--	定数定義
+--------------------------------------------------------------------------
+-- PEｶﾞｰﾄﾞ機能関連ﾚｼﾞｽﾀ
+	.set	PEGSP,		0xFFFEE60C
+	.set	PEGG0MK,	0xFFFEE680
+	.set	PEGG0BA,	0xFFFEE684
+	.set	PEGG1MK,	0xFFFEE690
+	.set	PEGG1BA,	0xFFFEE694
+	.set	PEGG2MK,	0xFFFEE6A0
+	.set	PEGG2BA,	0xFFFEE6A4
+	.set	PEGG3MK,	0xFFFEE6B0
+	.set	PEGG3BA,	0xFFFEE6B4
+
+-- PE内部周辺装置保護機能関連ﾚｼﾞｽﾀ
+	.set	IPGECRUM,	0xFFFEE002
+	.set	IPGADRUM,	0xFFFEE008
+	.set	IPGENUM,	0xFFFEE00D
+	.set	IPGPMTUM0,	0xFFFEE020
+	.set	IPGPMTUM2,	0xFFFEE022
+	.set	IPGPMTUM3,	0xFFFEE023
+	.set	IPGPMTUM4,	0xFFFEE024
+
+-- その他
+	.set	ZSTA_STACKADR,	0xFEBE0000	-- ｽﾀｰﾄｱｯﾌﾟﾙｰﾁﾝRAMｸﾘｱ領域先頭ｱﾄﾞﾚｽ ( ｽﾀｯｸ領域先頭 )
+	.set	ZEND_STACKADR,	0xFEBF0810	-- ｽﾀｰﾄｱｯﾌﾟﾙｰﾁﾝRAMｸﾘｱ領域終端ｱﾄﾞﾚｽ ( IBL1_STARTUP領域終端 )
+	.set	ZEIPSW_INI,		0x00000020	-- HW初期値
+	.set	ZFEPC_INI,		0x00000020	-- HW初期値
+	.set	ZPSW_INI,		0x00010020	-- ｽｰﾊﾟｰﾊﾞｲｻﾞﾓｰﾄﾞ,FPU使用,EIﾚﾍﾞﾙ例外処理中またはｸﾘﾃｨｶﾙｾｸｼｮﾝである
+	.set	ZMCFG0_INI,		0x00010004	-- HW初期値
+	.set	ZINTBP_INI,		0x00000200	-- 割り込みﾊﾝﾄﾞﾗﾃｰﾌﾞﾙｱﾄﾞﾚｽ
+	.set	ZMCTL_INI,		0x80000000	-- HW初期値
+	.set	ZSCBP_INI,		0x00060008	-- SYSCALL例外ﾃｰﾌﾞﾙｱﾄﾞﾚｽ
+	.set	ZINTCFG_INI,	0x00000001	-- ISPRを自動的に更新しない
+	.set	ZFPSR_INI,		0x00020000	-- 近傍へのﾌﾗｯｼｭ無効,ｲﾝﾌﾟﾚｻｲｽ例外,丸めﾓｰﾄﾞ:RN,ﾌﾗｯｼｭ許可,
+										--										浮動小数点演算例外禁止
+	.set	ZICCTRL_INI,	0x00010003	-- ｷｬｯｼｭ･ｴﾗｰ例外の通知をﾏｽｸ,命令ｷｬｯｼｭは有効
+	.set	ZCDBCR_INI,		0x00000001	-- ﾃﾞｰﾀﾊﾞｯﾌｧは有効
+	
+	.set	ZPEGSP_INI,		0x00000001	-- 外部ﾏｽﾀｱｸｾｽ有効
+	.set	ZPEGG0MK_INI,	0x0001F000	-- 全PE1領域許可
+	.set	ZPEGG0BA_INI,	0xFEBE0027	-- SPID:1に対してｱｸｾｽ許可
+	
+
+-- 汎用ﾚｼﾞｽﾀｸﾘｱ
+----------------------------------------------------------------------------------------------------------
+--	特記事項：																							 
+-- 		汎用ﾚｼﾞｽﾀ未初期化によるCPUｺﾝﾍﾟｱｴﾗｰ発生の回避のため,汎用ﾚｼﾞｽﾀを全て初期化する					 
+----------------------------------------------------------------------------------------------------------
+	mov	0x00000000,	r1
+	mov	r1, 		r2		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r2
+	mov	r2, 		r6		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r6
+	mov	r6, 		r7		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r7
+	mov	r7, 		r8		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r8
+	mov	r8, 		r9		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r9
+	mov	r9, 		r10		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r10
+	mov	r10, 		r11		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r11
+	mov	r11, 		r12		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r12
+	mov	r12, 		r13		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r13
+	mov	r13, 		r14		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r14
+	mov	r14, 		r15		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r15
+	mov	r15, 		r16		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r16
+	mov	r16, 		r17		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r17
+	mov	r17, 		r18		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r18
+	mov	r18, 		r19		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r19
+	mov	r19, 		r20		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r20
+	mov	r20, 		r21		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r21
+	mov	r21, 		r22		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r22
+	mov	r22, 		r23		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r23
+	mov	r23, 		r24		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r24
+	mov	r24, 		r25		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r25
+	mov	r25, 		r26		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r26
+	mov	r26, 		r27		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r27
+	mov	r27, 		r28		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r28
+	mov	r28, 		r29		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r29
+	mov	r29, 		r30		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r30
+	mov	r30, 		r31		-- ﾘｾｯﾄ後不定値読み出し
+	mov	0x00000000,	r31
+	mov	r31, 		r1		-- ﾘｾｯﾄ後不定値読み出し
+
+-- ｽﾀｯｸ領域ｸﾘｱ
+----------------------------------------------------------------------------------------------------------
+--	特記事項：																							 
+-- 		ECCｴﾗｰ誤検知防止の為、Initialize関数ｺｰﾙでのｽﾀｯｸ･IBL1_STARTUPが使用される前に領域を初期化		 
+----------------------------------------------------------------------------------------------------------
+	mov		ZSTA_STACKADR, r11			-- ｽﾀｰﾄｱｯﾌﾟﾙｰﾁﾝRAMｸﾘｱ領域先頭ｱﾄﾞﾚｽ
+	mov		ZEND_STACKADR, r12			-- ｽﾀｰﾄｱｯﾌﾟﾙｰﾁﾝRAMｸﾘｱ領域終了ｱﾄﾞﾚｽ
+_stackclr:
+	st.w	r0, 0[r11]					-- 0x00000000でRAMｸﾘｱ
+	add		4, r11						-- 次ｱﾄﾞﾚｽ設定
+	cmp		r11, r12					-- ｽﾀｯｸ領域終端ﾁｪｯｸ
+	jne		_stackclr					-- 終端以外は次ｱﾄﾞﾚｽからｸﾘｱ処理続行
+
+
+-- Initialisation of the global pointer
+	movhi	hi(__gp), zero, gp			-- sdabaseから+32kBをﾎﾟｲﾝﾄ
+	movea	lo(__gp), gp, gp
+	mov		gp, r6						-- ﾘｾｯﾄ後不定値読み出し
+
+-- Initialisation of the stack pointer
+	movhi	hi(___ghsend_stack-4), zero, sp
+	movea	lo(___ghsend_stack-4), sp, sp
+	mov		sp, r6						-- ﾘｾｯﾄ後不定値読み出し
+
+-- Initialisation of the text pointer
+	mov		___ghsbegin_rosda_start, r6 -- .rosda_start
+	mov		___ghsend_rosda_end, r7		-- .rosda_end
+	sub		r6, r7
+	add		0x00000001, r7
+	shr		0x00000001, r7
+	add		r6, r7
+	mov		r7, tp						-- .rosda_startと.rosda_endのの中間の値にtpを初期化
+	mov		tp, r6						-- ﾘｾｯﾄ後不定値読み出し
+
+--ｼｽﾃﾑﾚｼﾞｽﾀ初期化
+--CPU機能ｸﾞﾙｰﾌﾟ-基本ﾊﾞﾝｸ ﾚｼﾞｽﾀ初期化
+-- 基本ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 0 --
+	ldsr	r0,	EIPC,		0			-- ZEIPC_INI = 0のため、R0で設定を実施
+	mov		ZEIPSW_INI,		r6
+	ldsr	r6,	EIPSW,		0
+	ldsr	r0,	FEPC,		0			-- ZFEPC_INI = 0のため、R0で設定を実施
+	mov		ZFEPC_INI,		r6
+	ldsr	r6,	FEPSW,		0
+	mov		ZPSW_INI,		r6
+	ldsr	r6,	PSW,		0
+	ldsr	r0,	EIIC,		0			-- ZEIIC_DEF = 0のため、R0で設定を実施
+	ldsr	r0,	FEIC,		0			-- ZFEIC_DEF = 0のため、R0で設定を実施
+	ldsr	r0,	CTPC,		0			-- ZCTPC_INI = 0のため、R0で設定を実施
+	ldsr	r0,	CTPSW,		0			-- ZCTPSW_DEF = 0のため、R0で設定を実施
+	ldsr	r0,	CTBP,		0			-- ZCTBP_INI = 0のため、R0で設定を実施
+	ldsr	r0,	EIWR,		0			-- ZEIWR_INI = 0のため、R0で設定を実施
+	ldsr	r0,	FEWR,		0			-- ZFEWR_INI = 0のため、R0で設定を実施
+	-- selID 1 --
+	mov		ZMCFG0_INI,		r6
+	ldsr	r6,	MCFG0,		1
+	ldsr	r0,	EBASE,		1			-- ZEBASE_INI = 0のため、R0で設定を実施
+	mov		ZINTBP_INI,		r6
+	ldsr	r6,	INTBP,		1
+	mov		ZMCTL_INI,		r6
+	ldsr	r6,	MCTL,		1
+	ldsr	r0,	SCCFG,		1			-- ZSCCFG_INI = 0のため、R0で設定を実施
+	mov		ZSCBP_INI,		r6
+	ldsr	r6,	SCBP,		1
+	-- selID 2 --
+	ldsr	r0,	MEA,		2			-- ZMEA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	ASID,		2			-- ZASID_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MEI,		2			-- ZMEI_INI = 0のため、R0で設定を実施
+-- 割り込み機能ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 1 --
+	ldsr	r0,	FPIPR,		1			-- ZFPIPR_DEF = 0のため、R0で設定を実施
+	-- selID 2 --
+	ldsr	r0,	PMR,		2			-- ZPMR_DEF = 0のため、R0で設定を実施
+	mov		ZINTCFG_INI,	r6
+	ldsr	r6,	INTCFG,		2
+	ldsr	r0,	ISPR,		2			-- ZISPR_DEF = 0のため、R0で設定を実施
+	ldsr	r0,	INTCFG,		2			-- ZINTCFG_INI = 0のため、R0で設定を実施
+-- FPU機能ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 0 --
+	mov		ZFPSR_INI,		r6
+	ldsr	r6,	FPSR
+	ldsr	r0,	FPEPC			-- ZFPEPC_INI = 0のため、R0で設定を実施
+	ldsr	r0,	FPST			-- ZFPST_INI = 0のため、R0で設定を実施
+	ldsr	r0,	FPCC			-- ZFPCC_INI = 0のため、R0で設定を実施
+	ldsr	r0,	FPCFG			-- ZFPCFG_DEF = 0のため、R0で設定を実施
+
+-- MPU機能ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 5 --
+	ldsr	r0,	MPM,		5			-- ZMPM_DEF = 0のため、R0で設定を実施
+	ldsr	r0,	MPRC,		5			-- ZMPRC_DEF = 0のため、R0で設定を実施
+	ldsr	r0,	MCA,		5			-- ZMCA_INI = 0のため、R0で設定を実施
+	mov		0x00000001,		r6			-- MCSには0以外を設定(ﾏﾆｭｱﾙ禁手対応)
+	ldsr	r6,	MCS,		5
+	ldsr	r0,	MCR,		5			-- ZMCR_INI = 0のため、R0で設定を実施
+	-- selID 6 --
+	ldsr	r0,	MPLA0,		6			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA0,		6			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT0,		6			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA1,		6			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA1,		6			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT1,		6			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA2,		6			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA2,		6			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT2,		6			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA3,		6			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA3,		6			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT3,		6			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA4,		6			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA4,		6			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT4,		6			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA5,		6			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA5,		6			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT5,		6			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA6,		6			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA6,		6			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT6,		6			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA7,		6			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA7,		6			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT7,		6			-- ZMPAT_INI = 0のため、R0で設定を実施
+	-- selID 7 --
+	ldsr	r0,	MPLA8,		7			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA8,		7			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT8,		7			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA9,		7			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA9,		7			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT9,		7			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA10,		7			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA10,		7			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT10,		7			-- ZMPAT_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPLA11,		7			-- ZMPLA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPUA11,		7			-- ZMPUA_INI = 0のため、R0で設定を実施
+	ldsr	r0,	MPAT11,		7			-- ZMPAT_INI = 0のため、R0で設定を実施
+-- ｷｬｯｼｭ制御ｼｽﾃﾑﾚｼﾞｽﾀ --
+	-- selID 4 --
+	ldsr	r0,	ICTAGL,		4			-- ZICTAGL_INI = 0のため、R0で設定を実施
+	ldsr	r0,	ICTAGH,		4			-- ZICTAGH = 0のため、R0で設定を実施
+	ldsr	r0,	ICDATL,		4			-- ZICDATL_INI = 0のため、R0で設定を実施
+	ldsr	r0,	ICDATH,		4			-- ZICDATH_INI = 0のため、R0で設定を実施
+	mov		ZICCTRL_INI,	r6
+	ldsr	r6,	ICCTRL,		4
+	ldsr	r0,	ICERR,		4			-- ZICERR_INI = 0のため、R0で設定を実施
+-- ﾃﾞｰﾀﾊﾞｯﾌｧ操作機能ﾚｼﾞｽﾀ --
+	-- selID 13 --
+	mov		ZCDBCR_INI,		r6
+	ldsr	r6,	CDBCR,		13
+
+-- PEｶﾞｰﾄﾞ機能関連ﾚｼﾞｽﾀ
+-- SPID:1のﾊﾞｽﾏｽﾀ(DMAに割り当て)に対して全PE1領域へのｱｸｾｽを許可する
+	mov		PEGSP,		r6
+	mov		ZPEGSP_INI,	r7
+	st.w	r7,			0[r6]
+	mov		PEGG0MK,	r6
+	mov		ZPEGG0MK_INI,	r7
+	st.w	r7,			0[r6]
+	mov		PEGG0BA,	r6
+	mov		ZPEGG0BA_INI,	r7
+	st.w	r7,			0[r6]
+	mov		PEGG1MK,	r6
+	st.w	r0,			0[r6]			-- ZPEGGMK_DEF = 0のため、R0で設定を実施
+	mov		PEGG1BA,	r6
+	st.w	r0,			0[r6]			-- ZPEGGBA_DEF = 0のため、R0で設定を実施
+	mov		PEGG2MK,	r6
+	st.w	r0,			0[r6]			-- ZPEGGMK_DEF = 0のため、R0で設定を実施
+	mov		PEGG2BA,	r6
+	st.w	r0,			0[r6]			-- ZPEGGBA_DEF = 0のため、R0で設定を実施
+	mov		PEGG3MK,	r6
+	st.w	r0,			0[r6]			-- ZPEGGMK_DEF = 0のため、R0で設定を実施
+	mov		PEGG3BA,	r6
+	st.w	r0,			0[r6]			-- ZPEGGBA_DEF = 0のため、R0で設定を実施
+-- PE内部周辺装置保護機能関連ﾚｼﾞｽﾀ
+	mov		IPGENUM,	r6
+	st.b	r0,			0[r6]			-- ZIPGENUM_DEF = 0のため、R0で設定を実施
+	mov		IPGECRUM,	r6
+	st.h	r0,			0[r6]			-- ZIPGECRUM_DEF = 0のため、R0で設定を実施
+	mov		IPGADRUM,	r6
+	st.w	r0,			0[r6]			-- ZIPGADRUM_DEF = 0のため、R0で設定を実施
+	mov		IPGPMTUM0,	r6
+	st.b	r0,			0[r6]			-- ZIPGPMTUM0_DEF = 0のため、R0で設定を実施
+	mov		IPGPMTUM2,	r6
+	st.b	r0,			0[r6]			-- ZIPGPMTUM2_DEF = 0のため、R0で設定を実施
+	mov		IPGPMTUM3,	r6
+	st.b	r0,			0[r6]			-- ZIPGPMTUM3_DEF = 0のため、R0で設定を実施
+	mov		IPGPMTUM4,	r6
+	st.b	r0,			0[r6]			-- ZIPGPMTUM4_DEF = 0のため、R0で設定を実施
+
+-- ﾘｾｯﾄ後設定値読み出し
+	stsr	EIPC, r6, 0
+	stsr	FEPC, r6, 0
+	stsr	CTPC, r6, 0
+	stsr	CTBP, r6, 0
+	stsr	EIWR, r6, 0
+	stsr	FEWR, r6, 0
+	stsr	EBASE, r6, 1
+	stsr	INTBP, r6, 1
+	stsr	SCCFG, r6, 1
+	stsr	SCBP, r6, 1
+	stsr	MEA, r6, 1
+	stsr	ASID, r6, 1
+	stsr	MEI, r6, 1
+	stsr	MCA, r6, 5
+	stsr	MCS, r6, 5
+	stsr	MCR, r6, 5
+	stsr	MPLA0, r6, 6
+	stsr	MPUA0, r6, 6
+	stsr	MPAT0, r6, 6
+	stsr	MPLA1, r6, 6
+	stsr	MPUA1, r6, 6
+	stsr	MPAT1, r6, 6
+	stsr	MPLA2, r6, 6
+	stsr	MPUA2, r6, 6
+	stsr	MPAT2, r6, 6
+	stsr	MPLA3, r6, 6
+	stsr	MPUA3, r6, 6
+	stsr	MPAT3, r6, 6
+	stsr	MPLA4, r6, 6
+	stsr	MPUA4, r6, 6
+	stsr	MPAT4, r6, 6
+	stsr	MPLA5, r6, 6
+	stsr	MPUA5, r6, 6
+	stsr	MPAT5, r6, 6
+	stsr	MPLA6, r6, 6
+	stsr	MPUA6, r6, 6
+	stsr	MPAT6, r6, 6
+	stsr	MPLA7, r6, 6
+	stsr	MPUA7, r6, 6
+	stsr	MPAT7, r6, 6
+	stsr	MPLA8, r6, 7
+	stsr	MPUA8, r6, 7
+	stsr	MPAT8, r6, 7
+	stsr	MPLA9, r6, 7
+	stsr	MPUA9, r6, 7
+	stsr	MPAT9, r6, 7
+	stsr	MPLA10, r6, 7
+	stsr	MPUA10, r6, 7
+	stsr	MPAT10, r6, 7
+	stsr	MPLA11, r6, 7
+	stsr	MPUA11, r6, 7
+	stsr	MPAT11, r6, 7
+	stsr	ICTAGL, r6, 4
+	stsr	ICTAGH, r6, 4
+	stsr	ICDATL, r6, 4
+	stsr	ICDATH, r6, 4
+	stsr	ICERR, r6, 4
+	mov		IPGECRUM, r6
+	mov		IPGADRUM, r6
+
+    jarl	_SysBSts_Initialize, lp		--  call main function
+
+	jr	 	__start						-- ｿﾌﾄｳｪｱﾘｾｯﾄ (ここには到達しない)
+--------------------------------------------------------------------------

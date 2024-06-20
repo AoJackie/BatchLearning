@@ -1,0 +1,32 @@
+#!gbuild
+primaryTarget=v800_standalone.tgt
+#component top_level_project
+[Project]
+
+#*************************************************************************************************************
+
+
+#=============================================================================================================
+	-bsp generic
+	-cpu=rh850g3m
+	-G
+	-ansi
+	--unsigned_fields
+	--no_short_enum
+	-passsource
+	-list
+	-map
+	--asm_silent
+	-language=c
+	-noobj
+	-dwarf2
+	--diag_suppress 494
+	--prototype_errors
+	--unknown_pragma_errors
+	--incorrect_pragma_errors
+	-Xv800_no_ldst_compaction
+	-no_delete
+	:optionsFile=Option\APP_Options.opt
+	-no_japanese_automotive_c
+	-reserve_r2
+..\Code\APP_LINK.gpj		[Program]

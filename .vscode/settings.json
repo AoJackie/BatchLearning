@@ -1,0 +1,9 @@
+{
+    // "C_Cpp.default.compilerPath": "c:\\ghs\\comp_202214\\gbuild.exe"
+
+    /* 用户自定义变量和路径 */
+
+    "GreenHillsCompilerPath":"C:\\ghs\\comp_202214\\gbuild.exe",
+
+    "ProjectClearBatchPath":"D:\\szy\\01_INITUP\\17_TortoiseGit\\BatchLearning\\Project_Clear.bat",
+}
